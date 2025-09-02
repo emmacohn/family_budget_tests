@@ -39,9 +39,3 @@ acs <- acs_raw |>
   unite(col = "famid", c(serial, famunit), na.rm = TRUE) |>
   mutate(child = case_when(age < 18 ~ 1,
                            TRUE ~ 0))
-
-child_age_gaps <- acs |> 
-  filter(child == 1) |>
-  mutate(gap = (eldch - yngch)) |> 
-  summarize(avg_gap = mean(gap, na.rm = TRUE),
-            .by = year)
