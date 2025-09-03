@@ -3,6 +3,7 @@ library(ipumsr)
 library(janitor)
 library(labelled)
 library(fs)
+library(epidatatools)
 
 # Load samples
 acs_samps <- ipumsr::get_sample_info('usa')
@@ -34,54 +35,51 @@ acs_raw <- read_ipums_micro(ddi = 'input/usa_00028.xml')
 
 acs <- acs_raw |> 
   # Use the janitor library to clean up names
-  janitor::clean_names() |> 
-  filter(year >= 2010) |> 
+  janitor::clean_names() #|> 
 # serial = unique hh idea, famunit = unique when multiple fams in one hh
-  unite(col = "famid", c(serial, famunit), na.rm = TRUE) |> 
-  mutate(child = case_when(age < 18 ~ 1,
-                           TRUE ~ 0))
+#  unite(col = "famid", c(serial, famunit), na.rm = TRUE) |> 
+#  mutate(child = case_when(age < 18 ~ 1,
+#                           TRUE ~ 0))
 
 #across all families
 child_age_gaps <- acs |> 
-  filter(child == 1, nchild > 1) |> 
-  group_by(famid, year) |> 
-  mutate(gap = (eldch - yngch)) |> 
+  filter(nchild > 1) |> 
+  group_by(year) |> 
+  mutate(gap = (eldch - yngch)/(nchild - 1)) |> 
   ungroup() |> 
-  summarise(avg_gap = mean(gap, na.rm = TRUE),
+  summarise(avg_gap = weighted.mean(gap, perwt, na.rm = TRUE),
             .by = year)
 
 # 2 kid families
 two_child_gap <- acs |> 
-  filter(child == 1, nchild == 2) |> 
-  group_by(famid, year) |> 
+  filter(nchild == 2) |> 
+  group_by(year) |> 
   mutate(gap = (eldch - yngch)) |> 
   ungroup() |> 
-  summarise(two_gap = mean(gap, na.rm = TRUE),
+  summarise(two_gap = weighted.mean(gap, perwt, na.rm = TRUE),
             .by = year)
 
 # 3 kid families
 three_child_gap <- acs |> 
-  filter(child == 1, nchild == 3) |> 
-  group_by(famid, year) |> 
+  filter(nchild == 3) |> 
+  group_by(year) |> 
   mutate(gap = (eldch - yngch)/2) |> 
   ungroup() |> 
-  summarise(three_gap = mean(gap, na.rm = TRUE),
+  summarise(three_gap = weighted.mean(gap, perwt, na.rm = TRUE),
             .by = year)
 
 # 4 kid families
 four_child_gap <- acs |> 
-  filter(child == 1, nchild == 4) |> 
-  group_by(famid, year) |> 
+  filter(nchild == 4) |> 
+  group_by(year) |> 
   mutate(gap = (eldch - yngch)/3) |> 
   ungroup() |> 
-  summarise(four_gap = mean(gap, na.rm = TRUE),
+  summarise(four_gap = weighted.mean(gap, perwt, na.rm = TRUE),
             .by = year)
 
 age_gaps <-  left_join(child_age_gaps, two_child_gap, by='year') |>
   left_join(three_child_gap) |> 
   left_join(four_child_gap)
- 
-## PROBLEMS
-# 1. not weighted
-# 2. the 4 child gap especially looks really wonky
-# 3. i have no idea if any of this is right?? i'm pretty lost on how to construct families
+
+crosstab(acs, nchild, year)
+crosstab(acs, child, year)
