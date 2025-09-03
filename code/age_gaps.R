@@ -4,6 +4,7 @@ library(janitor)
 library(labelled)
 library(fs)
 library(epidatatools)
+library(openxlsx2)
 
 # Load samples
 acs_samps <- ipumsr::get_sample_info('usa')
@@ -48,6 +49,8 @@ child_age_gaps <- acs |>
   mutate(gap = (eldch - yngch)/(nchild - 1)) |> 
   ungroup() |> 
   summarise(avg_gap = weighted.mean(gap, perwt, na.rm = TRUE),
+            wt_med_gap = weighted.median(gap, perwt, na.rm = TRUE),
+            med_gap = median(gap, na.rm = TRUE),
             .by = year)
 
 # 2 kid families
@@ -57,6 +60,7 @@ two_child_gap <- acs |>
   mutate(gap = (eldch - yngch)) |> 
   ungroup() |> 
   summarise(two_gap = weighted.mean(gap, perwt, na.rm = TRUE),
+            two_med_gap = median(gap, na.rm = TRUE),
             .by = year)
 
 # 3 kid families
@@ -66,6 +70,7 @@ three_child_gap <- acs |>
   mutate(gap = (eldch - yngch)/2) |> 
   ungroup() |> 
   summarise(three_gap = weighted.mean(gap, perwt, na.rm = TRUE),
+            three_med_gap = median(gap, na.rm = TRUE),
             .by = year)
 
 # 4 kid families
@@ -75,11 +80,22 @@ four_child_gap <- acs |>
   mutate(gap = (eldch - yngch)/3) |> 
   ungroup() |> 
   summarise(four_gap = weighted.mean(gap, perwt, na.rm = TRUE),
+            four_med_gap = median(gap, na.rm = TRUE),
             .by = year)
 
 age_gaps <-  left_join(child_age_gaps, two_child_gap, by='year') |>
   left_join(three_child_gap) |> 
   left_join(four_child_gap)
 
+wb$add_worksheet(sheet = "Age gaps") $
+  add_data(x = age_gaps)
+
 crosstab(acs, nchild, year)
-crosstab(acs, child, year)
+
+crosstabs <- crosstab(acs, child, year)
+
+wb$add_worksheet(sheet = "Crosstab") $
+  add_data(x = crosstabs)
+
+wb_save(wb, "output/age_gaps_FBC.xlsx")
+
