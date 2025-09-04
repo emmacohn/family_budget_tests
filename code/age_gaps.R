@@ -5,6 +5,10 @@ library(labelled)
 library(fs)
 library(epidatatools)
 library(openxlsx2)
+library(spatstat)
+
+#set up workbook
+wb <- wb_workbook()
 
 # Load samples
 acs_samps <- ipumsr::get_sample_info('usa')
@@ -34,13 +38,15 @@ dl_extr <- download_extract(extract = acs_extr,
 # NOTE: Your project directory and xml file may look different!
 acs_raw <- read_ipums_micro(ddi = 'input/usa_00028.xml')
 
+arrow::write_feather(acs_raw, "input/acs_raw.feather")
+
 acs <- acs_raw |> 
   # Use the janitor library to clean up names
-  janitor::clean_names() #|> 
+  janitor::clean_names() |> 
 # serial = unique hh idea, famunit = unique when multiple fams in one hh
 #  unite(col = "famid", c(serial, famunit), na.rm = TRUE) |> 
-#  mutate(child = case_when(age < 18 ~ 1,
-#                           TRUE ~ 0))
+mutate(child = case_when(age < 18 ~ 1,
+                          TRUE ~ 0))
 
 #across all families
 child_age_gaps <- acs |> 
@@ -90,12 +96,14 @@ age_gaps <-  left_join(child_age_gaps, two_child_gap, by='year') |>
 wb$add_worksheet(sheet = "Age gaps") $
   add_data(x = age_gaps)
 
-crosstab(acs, nchild, year)
+n_crosstabs <- crosstab(acs, nchild, year)
+
+wb$add_worksheet(sheet = "NCHILD Crosstab") $
+  add_data(x = n_crosstabs)
 
 crosstabs <- crosstab(acs, child, year)
 
-wb$add_worksheet(sheet = "Crosstab") $
+wb$add_worksheet(sheet = "CHILD Crosstab") $
   add_data(x = crosstabs)
 
-wb_save(wb, "output/age_gaps_FBC.xlsx")
-
+wb_save(wb, "output/age_gaps_FBC.xlsx") #test
