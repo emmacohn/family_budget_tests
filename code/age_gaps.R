@@ -38,7 +38,7 @@ dl_extr <- download_extract(extract = acs_extr,
 # NOTE: Your project directory and xml file may look different!
 acs_raw <- read_ipums_micro(ddi = 'input/usa_00028.xml')
 
-arrow::write_feather(acs_raw, "input/acs_raw.feather")
+# arrow::write_feather(acs_raw, "input/acs_raw.feather")
 
 acs <- acs_raw |> 
   # Use the janitor library to clean up names
@@ -50,7 +50,7 @@ mutate(child = case_when(age < 18 ~ 1,
 
 #across all families
 child_age_gaps <- acs |> 
-  filter(nchild > 1) |> 
+  filter(nchild > 1, eldch < 18) |> 
   group_by(year) |> 
   mutate(gap = (eldch - yngch)/(nchild - 1)) |> 
   ungroup() |> 
@@ -61,7 +61,8 @@ child_age_gaps <- acs |>
 
 # 2 kid families
 two_child_gap <- acs |> 
-  filter(nchild == 2) |> 
+  filter(nchild == 2#, eldch < 18
+    ) |> 
   group_by(year) |> 
   mutate(gap = (eldch - yngch)) |> 
   ungroup() |> 
@@ -71,7 +72,8 @@ two_child_gap <- acs |>
 
 # 3 kid families
 three_child_gap <- acs |> 
-  filter(nchild == 3) |> 
+  filter(nchild == 3#, eldch < 18
+    ) |> 
   group_by(year) |> 
   mutate(gap = (eldch - yngch)/2) |> 
   ungroup() |> 
@@ -81,7 +83,8 @@ three_child_gap <- acs |>
 
 # 4 kid families
 four_child_gap <- acs |> 
-  filter(nchild == 4) |> 
+  filter(nchild == 4#, eldch < 18
+    ) |> 
   group_by(year) |> 
   mutate(gap = (eldch - yngch)/3) |> 
   ungroup() |> 
@@ -106,4 +109,4 @@ crosstabs <- crosstab(acs, child, year)
 wb$add_worksheet(sheet = "CHILD Crosstab") $
   add_data(x = crosstabs)
 
-wb_save(wb, "output/age_gaps_FBC.xlsx") #test
+wb_save(wb, "output/age_gaps_FBC_filtered.xlsx") #test
